@@ -2,9 +2,10 @@ import time
 from scrapy.crawler import CrawlerProcess
 from scrapy.utils.project import get_project_settings
 from scrapy.signalmanager import dispatcher
-from main.main.spiders.meme_coin_spider import MemeCoinSpider 
 from scrapy import signals
 import smtplib
+from threading import Thread
+import subprocess
 
 def sendMessage(to_phone, msg):
     message = msg + " is a money glitch?!?!?!"
@@ -20,8 +21,34 @@ def sendMessage(to_phone, msg):
     server.sendmail(sent_from, sent_to, email_text) 
     server.close()
 
-def run_spider_continuously(wallet_address, recipients):
-    process = CrawlerProcess(get_project_settings())  # Load Scrapy settings
+def run_spider(wallet_address):
+    spider_directory = "C:/Daniel Na/Meme Coin Scraper/main/main/spiders"
+
+    command = ["scrapy", "crawl", "MemeCoin", "-a", f"start_url={wallet_address}"]
+    print(command)
+
+    subprocess.run(command, cwd=spider_directory)
+
+#Given wallet address, check to see if the newest transaction matches the corresponding value in the map
+# If different, return False. If same, return True
+# Update the map if different
+def same_address_transaction_map(wallet_address, address_transaction_map):
+    file = open("C:/Daniel Na/Meme Coin Scraper/main/main/spiders/" + wallet_address + ".txt", "r+")
+    transactions = file.readlines()
+    file.close()
+    latest_transaction = transactions[-1]
+    if latest_transaction == address_transaction_map[wallet_address]:
+        return True
+    else:
+        # map is not in sync with the file
+        address_transaction_map[wallet_address] = latest_transaction
+        return False
+
+
+
+
+
+def run_spider_continuously(wallet_addresses, recipients):
 
     # stores text result
     
@@ -33,33 +60,41 @@ def run_spider_continuously(wallet_address, recipients):
         "Owen" : "owenlchau0916@gmail.com"
     }
 
+    address_transaction_map = {}
 
-    def handle_item(item, response, spider):
-        spider_results.append(item["text"])
-        print(f"Extracted text: {item['text']}")  # Print the `text` variable
-
-    # Connects the signal handler to Scrapy's item_scraped signal
-    dispatcher.connect(handle_item, signal=signals.item_scraped)
+    for wallet_address in wallet_addresses:
+        try:
+            file = open("C:/Daniel Na/Meme Coin Scraper/main/main/spiders/" + wallet_address + ".txt", "r+")
+            transactions = file.readlines()
+            if len(transactions) > 0:
+                address_transaction_map[wallet_address] = transactions[-1]
+            else:
+                address_transaction_map[wallet_address] = None
+            file.close()
+        except:
+            file = open("C:/Daniel Na/Meme Coin Scraper/main/main/spiders/" + wallet_address + ".txt", "w+")
+            address_transaction_map[wallet_address] = None
+            file.close()
+        
 
     while True:
         try:
-            print("Starting the Scrapy spider...")
-            spider_results = []
-            spider_results.clear()  # Clear results before the next run
-            process.crawl(MemeCoinSpider)
-            process.start(stop_after_crawl=True)  # Block until the spider finishes
-            print("Spider finished. Results:")
-            print(spider_results) 
-            for r in recipients:
-                sendMessage(name_number_map[r], "This works")
-            break
-            time.sleep(30)  # Adjust delay between spider runs if needed
+            for wallet_address in wallet_addresses:
+                thread = Thread(target = run_spider, args=(wallet_address,))
+                thread.start()
+                thread.join()
+                time.sleep(5)  # Adjust delay between spider runs if needed
+                if not same_address_transaction_map(wallet_address, address_transaction_map):
+                    for r in recipients:
+                        sendMessage(name_number_map[r], wallet_address)
+
+                
+                
             
         except KeyboardInterrupt:
-            process.stop()
             break
 
 if __name__ == "__main__":
-    wallet_address = input("Enter wallet address(es)-separate with space if needed: ")
+    wallet_addresses = input("Enter wallet address(es)-separate with space if needed: ").split(" ")
     recipients = input("Enter recipients (Daniel, Matua, Owen, Krish): ").split()
-    run_spider_continuously(wallet_address, recipients)
+    run_spider_continuously(wallet_addresses, recipients)
