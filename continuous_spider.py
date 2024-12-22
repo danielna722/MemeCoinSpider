@@ -20,7 +20,7 @@ def sendMessage(to_phone, msg):
     gmail_app_password = "ytgxpkeabqkekofv" 
     sent_from = gmail_user 
     sent_to = [to_phone, to_phone] 
-    sent_subject = "PPE Violation Alert" 
+    sent_subject = "BUY ALERT" 
     email_text = """\nFrom: %s \nTo: %s \nSubject: %s %s """ % (sent_from, ", ".join(sent_to), sent_subject, message) 
     server = smtplib.SMTP_SSL('smtp.gmail.com', 465) 
     server.ehlo() 
@@ -68,7 +68,7 @@ def is_transaction_buy(transaction_signature, wallet_address):
     try:
         # Wait for the element to load and have text
         element = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.XPATH, '//*[@id="ix-3"]/div[2]/table/tbody/tr[3]/td[2]/div[2]/span[2]/a'))
+            EC.presence_of_element_located((By.XPATH, '//*[@id="ix-3"]/div[2]/table/tbody/tr[2]/td[2]/div[1]/span[2]/a'))
         )
         # Fetch and print the text
         text = element.text
@@ -77,9 +77,12 @@ def is_transaction_buy(transaction_signature, wallet_address):
         print(f"From Address: {text}")
     except Exception as e:
         print(f"Error: {e}")
+        # Delete the transaction that threw error
+        
     driver.quit()
 
     return text == wallet_address
+
 
     # command = ["scrapy", "crawl", "TransactionSpider", "-a", f"signature={transaction_signature}", "-a",f"buyer_address={wallet_address}", "-L", "ERROR"]
     # print("Starting crawl for TransactionSpider")
@@ -137,8 +140,9 @@ def run_spider_continuously(wallet_addresses, recipients):
                     transaction_signature = address_transaction_map[wallet_address]
                     if is_transaction_buy(transaction_signature, wallet_address):
                         print("About to send messages: ")
+                        text_message = "Wallet Address: " + wallet_address + "\nTransaction Signature: " + transaction_signature
                         for r in recipients:
-                            sendMessage(name_number_map[r], wallet_address)
+                            sendMessage(name_number_map[r], text_message)
                 time.sleep(5)        
         except KeyboardInterrupt:
             break
