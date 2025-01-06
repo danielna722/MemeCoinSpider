@@ -68,7 +68,7 @@ def is_transaction_buy(transaction_signature, wallet_address):
     try:
         # Wait for the element to load and have text
         element = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.XPATH, '//*[@id="ix-3"]/div[2]/table/tbody/tr[2]/td[2]/div[1]/span[2]/a'))
+            EC.presence_of_element_located((By.XPATH, '/html/body/div[3]/div[3]/div[7]/div[2]/table/tbody/tr[2]/td[2]/div[1]/span[2]/a'))
         )
         # Fetch and print the text
         text = element.text
@@ -83,29 +83,19 @@ def is_transaction_buy(transaction_signature, wallet_address):
 
     return text == wallet_address
 
+def get_wallet_address_list():
+    wallet_addresses = []
+    file = open("wallet_addresses.txt", "r")
+    for line in file:
+        wallet_addresses.append(line.strip())
+    return wallet_addresses
 
-    # command = ["scrapy", "crawl", "TransactionSpider", "-a", f"signature={transaction_signature}", "-a",f"buyer_address={wallet_address}", "-L", "ERROR"]
-    # print("Starting crawl for TransactionSpider")
-    # time.sleep(5)
-    # process = subprocess.Popen(command, cwd=SPIDERS_DIRECTORY)
+def run_spider_continuously(recipients):
 
-    # process.wait()
+    # Define which wallet addresses I want to follow
+    
 
-    # print("CHECKING TRANSACTION SIGNATURE...")
-    # try:
-    #     file1 = open(SPIDERS_DIRECTORY+ "/isTransactionBuy.txt", "r+")
-    #     answer = file1.readline()
-    #     if answer == "True":
-    #         return True
-    #     else:
-    #         return False
-    # except:
-    #     return False
-
-
-def run_spider_continuously(wallet_addresses, recipients):
-
-    # stores text result
+    wallet_addresses = get_wallet_address_list()
     
 
     name_number_map = {
@@ -117,6 +107,9 @@ def run_spider_continuously(wallet_addresses, recipients):
 
     address_transaction_map = {}
 
+    # For each wallet address, check if a corresponding file containing its transaction history exists
+    # If so, value in the map is set to the most recent
+    # If not, value is set to None
     for wallet_address in wallet_addresses:
         try:
             file = open(SPIDERS_DIRECTORY+ "/addresses/" + wallet_address + ".txt", "r+")
@@ -134,7 +127,13 @@ def run_spider_continuously(wallet_addresses, recipients):
 
     while True:
         try:
+            wallet_addresses = get_wallet_address_list()
             for wallet_address in wallet_addresses:
+                if wallet_address not in address_transaction_map.keys():
+                    file = open(SPIDERS_DIRECTORY+ "/addresses/" + wallet_address + ".txt", "w+")
+                    address_transaction_map[wallet_address] = None
+                    file.close()
+
                 run_spider(wallet_address)
                 if not same_address_transaction_map(wallet_address, address_transaction_map):
                     transaction_signature = address_transaction_map[wallet_address]
@@ -148,15 +147,6 @@ def run_spider_continuously(wallet_addresses, recipients):
             break
 
 if __name__ == "__main__":
-    wallet_addresses = input("Enter wallet address(es)-separate with space if needed: ").split(" ")
+    # wallet_addresses = input("Enter wallet address(es)-separate with space if needed: ").split(" ")
     recipients = input("Enter recipients (Daniel, Matua, Owen, Krish): ").split()
-    run_spider_continuously(wallet_addresses, recipients)
-
-
-
-
-
-
-#'//div[@id="ix-3"]/div[@class="table-responsive mb-0"]/table[@class="table table-sm table-nowrap card-table"]/tbody[@class="list]/tr[3]/td[@class="text-lg-end"]/div[@class="d-flex d-lg-none align-items-center"]/span[@class="font-monospace"]/a'
-#F1f2duDG5DnHEuFguhXqdijh5T39ttmkvnNFReDNSWRM
-#//*[@id="ix-3"]/div[2]/table/tbody/tr[3]/td[2]/div[2]/span[2]/a
+    run_spider_continuously(recipients)
